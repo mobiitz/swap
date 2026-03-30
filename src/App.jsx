@@ -1,28 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-
-const MBTC_TOKEN = {
-  chainId: 1,
-  address: '0x3898257dD2Cd6d2A3b6e3435f73568A725262b9B',
-  name: 'MAGA Bitcoin',
-  symbol: 'MBTC',
-  decimals: 18,
-}
-
-const APP_CODE = 'mbtc-swap'
-const PARTNER_FEE = {
-  bps: 10,
-  recipient: '0xE7E2775f96F282a97Ba0Dbc2Bc2948bA16a701D0',
-}
-const WIDGET_THEME = {
-  baseTheme: 'dark',
-  primary: '#00ff85',
-  background: '#0a0f14',
-  paper: '#101820',
-  text: '#f5fff8',
-  warning: '#ffb700',
-  alert: '#b8ffb2',
-  success: '#19ff64',
-}
+import { getBaseWidgetParams } from './widgetConfig'
 
 function getWidgetWidth() {
   if (typeof window === 'undefined') return 420
@@ -59,17 +36,7 @@ export default function App() {
         if (cancelled || !containerRef.current) return
 
         widget = createCowSwapWidget(containerRef.current, {
-          params: {
-            appCode: APP_CODE,
-            width: `${widgetWidth}px`,
-            height: '640px',
-            chainId: 1,
-            sell: { asset: 'USDC' },
-            buy: { asset: MBTC_TOKEN.address },
-            theme: WIDGET_THEME,
-            partnerFee: PARTNER_FEE,
-            customTokens: [MBTC_TOKEN],
-          },
+          params: getBaseWidgetParams(`${widgetWidth}px`, '640px'),
         })
       } catch (err) {
         if (!cancelled) {

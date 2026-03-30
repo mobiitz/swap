@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run build:site && npm run build:widget",
+    "build:site": "vite build",
+    "build:widget": "vite build --config vite.widget.config.js",
     "preview": "vite preview"
   },
   "dependencies": {
