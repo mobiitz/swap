@@ -10,7 +10,7 @@ const MBTC_TOKEN = {
 
 const APP_CODE = 'mbtc-swap'
 const PARTNER_FEE = {
-  bps: 50,
+  bps: 10,
   recipient: '0xE7E2775f96F282a97Ba0Dbc2Bc2948bA16a701D0',
 }
 const WIDGET_THEME = {
