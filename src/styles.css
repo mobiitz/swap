@@ -1,0 +1,86 @@
+:root {
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  color: #112031;
+  background:
+    radial-gradient(circle at top, rgba(103, 193, 255, 0.24), transparent 38%),
+    linear-gradient(160deg, #f7fbff 0%, #e7f0f8 45%, #d9e9ef 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+}
+
+.page-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.widget-card {
+  width: min(100%, 520px);
+  padding: 24px;
+  border: 1px solid rgba(17, 32, 49, 0.08);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 24px 80px rgba(17, 32, 49, 0.12);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #3f6c8d;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 2.6rem);
+  line-height: 0.96;
+}
+
+.intro {
+  margin: 12px 0 24px;
+  max-width: 34ch;
+  line-height: 1.5;
+  color: #35536b;
+}
+
+.error-message {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(163, 36, 36, 0.08);
+  color: #8f2020;
+  font-size: 0.95rem;
+}
+
+.widget-host {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+@media (max-width: 640px) {
+  .page-shell {
+    padding: 16px;
+  }
+
+  .widget-card {
+    padding: 18px;
+    border-radius: 22px;
+  }
+}
