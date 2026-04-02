@@ -30,6 +30,14 @@ function shouldUseInjectedProvider(options) {
   return Boolean(provider?.isMetaMask)
 }
 
+function resolveStandaloneMode(options) {
+  if (typeof options.standaloneMode === 'boolean') {
+    return options.standaloneMode
+  }
+
+  return true
+}
+
 function getAvailableHeight() {
   if (typeof window === 'undefined') return DEFAULT_HEIGHT
 
@@ -121,7 +129,7 @@ export function createMbtcSwapWidget(target, options = {}) {
     options.provider ?? (shouldUseInjectedProvider(options) ? getInjectedProvider() : undefined)
   const params = {
     ...getBaseWidgetParams(width, height),
-    standaloneMode: provider ? false : true,
+    standaloneMode: resolveStandaloneMode(options),
   }
 
   return createCowSwapWidget(container, {
