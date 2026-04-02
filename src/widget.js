@@ -18,6 +18,18 @@ function getInjectedProvider() {
   return window.ethereum
 }
 
+function shouldUseInjectedProvider(options) {
+  if (options.useInjectedProvider === true) return true
+  if (options.useInjectedProvider === false) return false
+
+  const provider = getInjectedProvider()
+
+  // MetaMask's in-app browser exposes the wallet provider directly on window.ethereum.
+  // In that environment, using the injected provider gives the widget access to MetaMask
+  // instead of falling back to a generic standalone wallet flow.
+  return Boolean(provider?.isMetaMask)
+}
+
 function getAvailableHeight() {
   if (typeof window === 'undefined') return DEFAULT_HEIGHT
 
@@ -106,7 +118,7 @@ export function createMbtcSwapWidget(target, options = {}) {
   container.style.height = height
 
   const provider =
-    options.provider ?? (options.useInjectedProvider === true ? getInjectedProvider() : undefined)
+    options.provider ?? (shouldUseInjectedProvider(options) ? getInjectedProvider() : undefined)
   const params = {
     ...getBaseWidgetParams(width, height),
     standaloneMode: provider ? false : true,
