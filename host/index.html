@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MBTC Widget Host Test</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(0, 255, 133, 0.18), transparent 32%),
+          linear-gradient(180deg, #071117 0%, #0d1821 100%);
+        color: #f4fff8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      main {
+        width: min(100%, 760px);
+        display: grid;
+        gap: 18px;
+      }
+
+      .panel {
+        padding: 18px 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        background: rgba(7, 17, 23, 0.78);
+        backdrop-filter: blur(16px);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 4vw, 2.8rem);
+        line-height: 0.95;
+      }
+
+      p {
+        margin: 0;
+        line-height: 1.5;
+        color: #c7ddd0;
+      }
+
+      .diagnostics {
+        display: grid;
+        gap: 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.95rem;
+      }
+
+      .diagnostics span {
+        color: #8ef0ba;
+      }
+
+      .widget-shell {
+        display: flex;
+        justify-content: center;
+        padding: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="panel">
+        <h1>MBTC Host Test</h1>
+        <p>This page loads the published embeddable bundle directly, without the React app wrapper.</p>
+      </section>
+
+      <section class="panel diagnostics" id="diagnostics"></section>
+
+      <section class="panel">
+        <div class="widget-shell">
+          <div id="mbtc-widget"></div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const diagnostics = document.getElementById('diagnostics')
+      const checks = [
+        ['top === self', window.top === window.self],
+        ['window.ethereum present', !!window.ethereum],
+        ['userAgent', navigator.userAgent],
+      ]
+
+      diagnostics.innerHTML = checks
+        .map(([label, value]) => `<div>${label}: <span>${String(value)}</span></div>`)
+        .join('')
+    </script>
+
+    <script src="/swap/widget.js"></script>
+    <script>
+      window.createMbtcSwapWidget('#mbtc-widget', {
+        width: 420,
+        height: 640,
+      })
+    </script>
+  </body>
+</html>
