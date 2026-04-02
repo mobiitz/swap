@@ -15,6 +15,11 @@ function normalizeDimension(value, fallback) {
   return fallback
 }
 
+function getInjectedProvider() {
+  if (typeof window === 'undefined') return undefined
+  return window.ethereum
+}
+
 export function createMbtcSwapWidget(target, options = {}) {
   const container = resolveContainer(target)
 
@@ -29,9 +34,11 @@ export function createMbtcSwapWidget(target, options = {}) {
   container.style.maxWidth = '100%'
   container.style.height = height
 
+  const provider = options.provider ?? getInjectedProvider()
+
   return createCowSwapWidget(container, {
     params: getBaseWidgetParams(width, height),
-    provider: options.provider,
+    provider,
     listeners: options.listeners,
   })
 }
