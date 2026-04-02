@@ -30,6 +30,7 @@ export function getBaseWidgetParams(width = '420px', height = '640px') {
     width,
     height,
     chainId: 1,
+    standaloneMode: true,
     sell: { asset: 'USDC' },
     buy: { asset: MBTC_TOKEN.address },
     theme: WIDGET_THEME,
