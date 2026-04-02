@@ -15,6 +15,17 @@ function normalizeDimension(value, fallback) {
   return fallback
 }
 
+function getNumericHeight(height, fallback = 640) {
+  if (typeof height === 'number' && Number.isFinite(height)) return height
+
+  if (typeof height === 'string') {
+    const parsed = parseInt(height, 10)
+    if (Number.isFinite(parsed)) return parsed
+  }
+
+  return fallback
+}
+
 function getInjectedProvider() {
   if (typeof window === 'undefined') return undefined
   return window.ethereum
@@ -37,6 +48,7 @@ export function createMbtcSwapWidget(target, options = {}) {
   const provider = options.provider ?? getInjectedProvider()
   const params = {
     ...getBaseWidgetParams(width, height),
+    maxHeight: getNumericHeight(height),
     standaloneMode: !provider,
   }
 

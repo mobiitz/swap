@@ -24,23 +24,11 @@ export const WIDGET_THEME = {
   success: '#19ff64',
 }
 
-function getNumericHeight(height) {
-  if (typeof height === 'number' && Number.isFinite(height)) return height
-
-  if (typeof height === 'string') {
-    const parsed = parseInt(height, 10)
-    if (Number.isFinite(parsed)) return parsed
-  }
-
-  return 640
-}
-
 export function getBaseWidgetParams(width = '420px', height = '640px') {
   return {
     appCode: APP_CODE,
     width,
     height,
-    maxHeight: getNumericHeight(height),
     chainId: 1,
     standaloneMode: true,
     sell: { asset: 'USDC' },
