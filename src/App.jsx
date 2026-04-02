@@ -1,19 +1,44 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { getBaseWidgetParams } from './widgetConfig'
 
+const DEFAULT_WIDGET_WIDTH = 420
+const MIN_WIDGET_WIDTH = 320
+const DEFAULT_WIDGET_HEIGHT = 640
+
+function getInjectedProvider() {
+  if (typeof window === 'undefined') return undefined
+  return window.ethereum
+}
+
 function getWidgetWidth() {
-  if (typeof window === 'undefined') return 420
-  return Math.min(420, Math.max(320, window.innerWidth - 48))
+  if (typeof window === 'undefined') return DEFAULT_WIDGET_WIDTH
+  return Math.min(DEFAULT_WIDGET_WIDTH, Math.max(MIN_WIDGET_WIDTH, window.innerWidth - 48))
+}
+
+function getWidgetHeight() {
+  if (typeof window === 'undefined') return `${DEFAULT_WIDGET_HEIGHT}px`
+
+  const isMobileViewport = window.innerWidth <= 640
+
+  if (!isMobileViewport) return `${DEFAULT_WIDGET_HEIGHT}px`
+
+  const viewportHeight = window.innerHeight || DEFAULT_WIDGET_HEIGHT
+  const reservedPageSpace = 180
+  const mobileHeight = Math.max(DEFAULT_WIDGET_HEIGHT, viewportHeight - reservedPageSpace)
+
+  return `${mobileHeight}px`
 }
 
 export default function App() {
   const containerRef = useRef(null)
   const [widgetWidth, setWidgetWidth] = useState(getWidgetWidth)
+  const [widgetHeight, setWidgetHeight] = useState(getWidgetHeight)
   const [error, setError] = useState('')
 
   useEffect(() => {
     function handleResize() {
       setWidgetWidth(getWidgetWidth())
+      setWidgetHeight(getWidgetHeight())
     }
 
     window.addEventListener('resize', handleResize)
@@ -35,8 +60,11 @@ export default function App() {
 
         if (cancelled || !containerRef.current) return
 
+        const provider = getInjectedProvider()
+
         widget = createCowSwapWidget(containerRef.current, {
-          params: getBaseWidgetParams(`${widgetWidth}px`, '640px'),
+          params: getBaseWidgetParams(`${widgetWidth}px`, widgetHeight),
+          provider,
         })
       } catch (err) {
         if (!cancelled) {
@@ -76,7 +104,7 @@ export default function App() {
         <div
           ref={containerRef}
           className="widget-host"
-          style={{ width: `${widgetWidth}px`, height: '640px' }}
+          style={{ width: `${widgetWidth}px`, height: widgetHeight }}
         />
       </section>
     </main>

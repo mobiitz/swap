@@ -13,26 +13,22 @@ function resolveContainer(target) {
   return target
 }
 
-function normalizeDimension(value, fallback) {
-  if (typeof value === 'number') return `${value}px`
-  if (typeof value === 'string' && value.trim()) return value
-  return fallback
-}
-
-function getNumericHeight(height, fallback = DEFAULT_HEIGHT) {
-  if (typeof height === 'number' && Number.isFinite(height)) return height
-
-  if (typeof height === 'string') {
-    const parsed = parseInt(height, 10)
-    if (Number.isFinite(parsed)) return parsed
-  }
-
-  return fallback
-}
-
 function getInjectedProvider() {
   if (typeof window === 'undefined') return undefined
   return window.ethereum
+}
+
+function getAvailableHeight() {
+  if (typeof window === 'undefined') return DEFAULT_HEIGHT
+
+  const isMobileViewport = window.innerWidth <= 640
+
+  if (!isMobileViewport) return DEFAULT_HEIGHT
+
+  const viewportHeight = window.innerHeight || DEFAULT_HEIGHT
+  const verticalPadding = 24
+
+  return Math.max(DEFAULT_HEIGHT, viewportHeight - verticalPadding)
 }
 
 function getAvailableWidth(container) {
@@ -72,6 +68,29 @@ function resolveWidth(container, requestedWidth) {
   return `${getAvailableWidth(container)}px`
 }
 
+function resolveHeight(requestedHeight) {
+  const availableHeight = getAvailableHeight()
+
+  if (requestedHeight == null) {
+    return `${availableHeight}px`
+  }
+
+  if (typeof requestedHeight === 'number' && Number.isFinite(requestedHeight)) {
+    return `${Math.max(requestedHeight, availableHeight)}px`
+  }
+
+  if (typeof requestedHeight === 'string' && requestedHeight.trim()) {
+    const parsed = parseInt(requestedHeight, 10)
+    if (Number.isFinite(parsed)) {
+      return `${Math.max(parsed, availableHeight)}px`
+    }
+
+    return requestedHeight
+  }
+
+  return `${availableHeight}px`
+}
+
 export function createMbtcSwapWidget(target, options = {}) {
   const container = resolveContainer(target)
 
@@ -80,7 +99,7 @@ export function createMbtcSwapWidget(target, options = {}) {
   }
 
   const width = resolveWidth(container, options.width)
-  const height = normalizeDimension(options.height, `${DEFAULT_HEIGHT}px`)
+  const height = resolveHeight(options.height)
 
   container.style.width = width
   container.style.maxWidth = '100%'
@@ -90,7 +109,6 @@ export function createMbtcSwapWidget(target, options = {}) {
     options.provider ?? (options.useInjectedProvider === true ? getInjectedProvider() : undefined)
   const params = {
     ...getBaseWidgetParams(width, height),
-    maxHeight: getNumericHeight(height),
     standaloneMode: provider ? false : true,
   }
 
