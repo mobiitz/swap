@@ -54,6 +54,19 @@ Other sites can embed the widget with:
 </script>
 ```
 
+The embed bundle now defaults to standalone wallet mode and clamps the widget width on smaller screens.
+If a host page explicitly wants to use its own injected wallet provider, pass:
+
+```html
+<script>
+  window.createMbtcSwapWidget('#mbtc-widget', {
+    width: 420,
+    height: 640,
+    useInjectedProvider: true
+  })
+</script>
+```
+
 ## Rebuild And Push A New `widget.js`
 
 If you change the widget settings or widget code, rebuild and push like this:
