@@ -35,9 +35,13 @@ export function createMbtcSwapWidget(target, options = {}) {
   container.style.height = height
 
   const provider = options.provider ?? getInjectedProvider()
+  const params = {
+    ...getBaseWidgetParams(width, height),
+    standaloneMode: !provider,
+  }
 
   return createCowSwapWidget(container, {
-    params: getBaseWidgetParams(width, height),
+    params,
     provider,
     listeners: options.listeners,
   })
