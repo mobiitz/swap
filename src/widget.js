@@ -22,12 +22,9 @@ function shouldUseInjectedProvider(options) {
   if (options.useInjectedProvider === true) return true
   if (options.useInjectedProvider === false) return false
 
-  const provider = getInjectedProvider()
-
-  // MetaMask's in-app browser exposes the wallet provider directly on window.ethereum.
-  // In that environment, using the injected provider gives the widget access to MetaMask
-  // instead of falling back to a generic standalone wallet flow.
-  return Boolean(provider?.isMetaMask)
+  // Mirror the working root app: if an injected wallet provider is available,
+  // hand it to the CoW widget instead of forcing a standalone wallet flow.
+  return Boolean(getInjectedProvider())
 }
 
 function resolveStandaloneMode(options) {
