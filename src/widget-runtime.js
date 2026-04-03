@@ -1,9 +1,8 @@
-import { createCowSwapWidget } from '@cowprotocol/widget-lib'
 import { getBaseWidgetParams } from './widgetConfig'
 
-const DEFAULT_WIDTH = 420
-const MIN_WIDTH = 320
-const DEFAULT_HEIGHT = 640
+const DEFAULT_WIDGET_WIDTH = 420
+const MIN_WIDGET_WIDTH = 320
+const DEFAULT_WIDGET_HEIGHT = 640
 
 function resolveContainer(target) {
   if (typeof target === 'string') {
@@ -18,65 +17,44 @@ function getInjectedProvider() {
   return window.ethereum
 }
 
-function resolveStandaloneMode(options) {
-  if (typeof options.standaloneMode === 'boolean') {
-    return options.standaloneMode
-  }
-
-  return true
+function getWidgetWidth() {
+  if (typeof window === 'undefined') return DEFAULT_WIDGET_WIDTH
+  return Math.min(DEFAULT_WIDGET_WIDTH, Math.max(MIN_WIDGET_WIDTH, window.innerWidth - 48))
 }
 
-function getAvailableWidth(container) {
-  if (typeof window === 'undefined') return DEFAULT_WIDTH
-
-  const viewportWidth = window.innerWidth || DEFAULT_WIDTH
-  const viewportSafeWidth = Math.max(MIN_WIDTH, Math.min(DEFAULT_WIDTH, viewportWidth - 48))
-  const containerWidth = container?.clientWidth || 0
-
-  if (!containerWidth) return viewportSafeWidth
-
-  return Math.max(MIN_WIDTH, Math.min(containerWidth, viewportSafeWidth, DEFAULT_WIDTH))
-}
-
-function getAvailableHeight() {
-  if (typeof window === 'undefined') return `${DEFAULT_HEIGHT}px`
+function getWidgetHeight() {
+  if (typeof window === 'undefined') return `${DEFAULT_WIDGET_HEIGHT}px`
 
   const isMobileViewport = window.innerWidth <= 640
 
-  if (!isMobileViewport) return `${DEFAULT_HEIGHT}px`
+  if (!isMobileViewport) return `${DEFAULT_WIDGET_HEIGHT}px`
 
-  const viewportHeight = window.innerHeight || DEFAULT_HEIGHT
+  const viewportHeight = window.innerHeight || DEFAULT_WIDGET_HEIGHT
   const reservedPageSpace = 180
-  const mobileHeight = Math.max(DEFAULT_HEIGHT, viewportHeight - reservedPageSpace)
+  const mobileHeight = Math.max(DEFAULT_WIDGET_HEIGHT, viewportHeight - reservedPageSpace)
 
   return `${mobileHeight}px`
 }
 
-function resolveWidth(container, requestedWidth) {
-  if (requestedWidth == null) {
-    return `${getAvailableWidth(container)}px`
-  }
+function normalizeRequestedWidth(requestedWidth) {
+  if (requestedWidth == null) return null
 
   if (typeof requestedWidth === 'number' && Number.isFinite(requestedWidth)) {
-    return `${Math.min(requestedWidth, getAvailableWidth(container))}px`
+    return requestedWidth
   }
 
   if (typeof requestedWidth === 'string' && requestedWidth.trim()) {
     const parsed = parseInt(requestedWidth, 10)
     if (Number.isFinite(parsed)) {
-      return `${Math.min(parsed, getAvailableWidth(container))}px`
+      return parsed
     }
-
-    return requestedWidth
   }
 
-  return `${getAvailableWidth(container)}px`
+  return null
 }
 
-function resolveHeight(requestedHeight) {
-  if (requestedHeight == null) {
-    return getAvailableHeight()
-  }
+function normalizeRequestedHeight(requestedHeight) {
+  if (requestedHeight == null) return null
 
   if (typeof requestedHeight === 'number' && Number.isFinite(requestedHeight)) {
     return `${requestedHeight}px`
@@ -86,7 +64,30 @@ function resolveHeight(requestedHeight) {
     return requestedHeight
   }
 
-  return getAvailableHeight()
+  return null
+}
+
+function getResolvedWidth(requestedWidth) {
+  const normalizedWidth = normalizeRequestedWidth(requestedWidth)
+
+  if (normalizedWidth == null) {
+    return getWidgetWidth()
+  }
+
+  return Math.min(normalizedWidth, getWidgetWidth())
+}
+
+function getResolvedHeight(requestedHeight) {
+  return normalizeRequestedHeight(requestedHeight) ?? getWidgetHeight()
+}
+
+function createNoopWidget() {
+  return {
+    updateParams() {},
+    updateListeners() {},
+    updateProvider() {},
+    destroy() {},
+  }
 }
 
 export function createMbtcSwapWidget(target, options = {}) {
@@ -96,23 +97,99 @@ export function createMbtcSwapWidget(target, options = {}) {
     throw new Error('MBTC widget target container was not found.')
   }
 
-  const width = resolveWidth(container, options.width)
-  const height = resolveHeight(options.height)
+  let destroyed = false
+  let widget = null
+  let requestedWidth = options.width
+  let requestedHeight = options.height
+  let listeners = options.listeners
+  let provider = options.provider ?? getInjectedProvider()
+  let widgetWidth = getResolvedWidth(requestedWidth)
+  let widgetHeight = getResolvedHeight(requestedHeight)
+  let widgetModulePromise = null
 
-  container.style.width = width
-  container.style.maxWidth = '100%'
-  container.style.height = height
-
-  const params = {
-    ...getBaseWidgetParams(width, height),
-    standaloneMode: resolveStandaloneMode(options),
+  function applyContainerSize() {
+    container.style.width = `${widgetWidth}px`
+    container.style.maxWidth = '100%'
+    container.style.height = widgetHeight
   }
 
-  return createCowSwapWidget(container, {
-    params,
-    provider: options.provider ?? getInjectedProvider(),
-    listeners: options.listeners,
+  function destroyWidget() {
+    try {
+      if (typeof widget?.destroy === 'function') {
+        widget.destroy()
+      }
+    } catch {
+      // Ignore third-party cleanup issues during remounts.
+    } finally {
+      widget = null
+      container.innerHTML = ''
+    }
+  }
+
+  async function mountWidget() {
+    if (destroyed) return
+
+    applyContainerSize()
+    container.innerHTML = ''
+
+    widgetModulePromise ||= import('@cowprotocol/widget-lib')
+
+    const { createCowSwapWidget } = await widgetModulePromise
+
+    if (destroyed) return
+
+    widget = createCowSwapWidget(container, {
+      params: getBaseWidgetParams(`${widgetWidth}px`, widgetHeight),
+      provider,
+      listeners,
+    })
+  }
+
+  function refreshMeasurements() {
+    const nextWidth = getResolvedWidth(requestedWidth)
+    const nextHeight = getResolvedHeight(requestedHeight)
+    const widthChanged = nextWidth !== widgetWidth
+
+    widgetWidth = nextWidth
+    widgetHeight = nextHeight
+    applyContainerSize()
+
+    if (widthChanged) {
+      destroyWidget()
+      mountWidget().catch((error) => {
+        console.error('Failed to remount MBTC widget.', error)
+      })
+    }
+  }
+
+  function handleResize() {
+    refreshMeasurements()
+  }
+
+  window.addEventListener('resize', handleResize)
+
+  mountWidget().catch((error) => {
+    console.error('Failed to mount MBTC widget.', error)
   })
+
+  return {
+    updateParams(nextParams) {
+      widget?.updateParams(nextParams)
+    },
+    updateListeners(nextListeners) {
+      listeners = nextListeners
+      widget?.updateListeners(nextListeners)
+    },
+    updateProvider(nextProvider) {
+      provider = nextProvider
+      widget?.updateProvider(nextProvider)
+    },
+    destroy() {
+      destroyed = true
+      window.removeEventListener('resize', handleResize)
+      destroyWidget()
+    },
+  }
 }
 
 if (typeof window !== 'undefined') {
