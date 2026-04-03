@@ -142,6 +142,21 @@ function resolveHeight(requestedHeight) {
   return `${availableHeight}px`
 }
 
+function resolveMaxHeight(height) {
+  if (typeof height === 'number' && Number.isFinite(height)) {
+    return height
+  }
+
+  if (typeof height === 'string') {
+    const parsed = parseInt(height, 10)
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+
+  return DEFAULT_HEIGHT
+}
+
 export function createMbtcSwapWidget(target, options = {}) {
   const container = resolveContainer(target)
 
@@ -160,7 +175,7 @@ export function createMbtcSwapWidget(target, options = {}) {
     options.provider ?? (shouldUseInjectedProvider(options) ? getInjectedProvider() : undefined)
   const params = {
     ...getBaseWidgetParams(width, height),
-    maxHeight: height,
+    maxHeight: resolveMaxHeight(height),
     standaloneMode: resolveStandaloneMode(options),
   }
 
