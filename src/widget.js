@@ -160,27 +160,54 @@ export function createMbtcSwapWidget(target, options = {}) {
     options.provider ?? (shouldUseInjectedProvider(options) ? getInjectedProvider() : undefined)
   const params = {
     ...getBaseWidgetParams(width, height),
+    maxHeight: height,
     standaloneMode: resolveStandaloneMode(options),
   }
 
-  const widget = createCowSwapWidget(container, {
-    params,
-    provider,
-    listeners: options.listeners,
-  })
+  let mountedWidget = null
+  let destroyed = false
+  let pendingParams = null
+  let pendingListeners = options.listeners
+  let pendingProvider = provider
 
   const stopWatchingProvider =
     options.provider || provider || options.useInjectedProvider === false
       ? () => {}
       : watchInjectedProvider((nextProvider) => {
-          widget.updateProvider(nextProvider)
+          pendingProvider = nextProvider
+          mountedWidget?.updateProvider(nextProvider)
         })
 
+  function mount() {
+    if (destroyed || mountedWidget) return
+
+    mountedWidget = createCowSwapWidget(container, {
+      params: pendingParams ?? params,
+      provider: pendingProvider,
+      listeners: pendingListeners,
+    })
+  }
+
+  window.setTimeout(mount, 0)
+
   return {
-    ...widget,
+    updateParams(nextParams) {
+      pendingParams = nextParams
+      mountedWidget?.updateParams(nextParams)
+    },
+    updateListeners(nextListeners) {
+      pendingListeners = nextListeners
+      mountedWidget?.updateListeners(nextListeners)
+    },
+    updateProvider(nextProvider) {
+      pendingProvider = nextProvider
+      mountedWidget?.updateProvider(nextProvider)
+    },
     destroy() {
+      destroyed = true
       stopWatchingProvider()
-      widget.destroy()
+      mountedWidget?.destroy()
+      mountedWidget = null
     },
   }
 }
