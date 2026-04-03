@@ -1,232 +1,133 @@
-import { createCowSwapWidget } from '@cowprotocol/widget-lib'
-import { getBaseWidgetParams } from './widgetConfig'
+const RUNTIME_READY_EVENT = 'mbtc-widget-runtime-ready'
+const RUNTIME_ERROR_EVENT = 'mbtc-widget-runtime-error'
 
-const DEFAULT_WIDTH = 420
-const MIN_WIDTH = 320
-const DEFAULT_HEIGHT = 640
+let runtimePromise
+let runtimeFactory
 
-function resolveContainer(target) {
-  if (typeof target === 'string') {
-    return document.querySelector(target)
+function getRuntimeUrl() {
+  if (typeof document === 'undefined') {
+    throw new Error('MBTC widget loader requires a browser environment.')
   }
 
-  return target
+  const currentScript = document.currentScript
+
+  if (currentScript?.src) {
+    return new URL('widget-runtime.js', currentScript.src).href
+  }
+
+  return new URL('widget-runtime.js', document.baseURI).href
 }
 
-function getInjectedProvider() {
-  if (typeof window === 'undefined') return undefined
-  return window.ethereum
-}
-
-function watchInjectedProvider(onProvider, timeoutMs = 5000) {
-  if (typeof window === 'undefined') return () => {}
-
-  let stopped = false
-  let pollId
-  let timeoutId
-
-  function stop() {
-    if (stopped) return
-    stopped = true
-    window.removeEventListener('ethereum#initialized', tryEmitProvider)
-    window.removeEventListener('eip6963:announceProvider', tryEmitProvider)
-    if (pollId) window.clearInterval(pollId)
-    if (timeoutId) window.clearTimeout(timeoutId)
-  }
-
-  function tryEmitProvider() {
-    const provider = getInjectedProvider()
-    if (!provider) return
-    onProvider(provider)
-    stop()
-  }
-
-  window.addEventListener('ethereum#initialized', tryEmitProvider, { once: true })
-  window.addEventListener('eip6963:announceProvider', tryEmitProvider)
-
-  pollId = window.setInterval(tryEmitProvider, 250)
-  timeoutId = window.setTimeout(stop, timeoutMs)
-
-  tryEmitProvider()
-
-  return stop
-}
-
-function shouldUseInjectedProvider(options) {
-  if (options.useInjectedProvider === true) return true
-  if (options.useInjectedProvider === false) return false
-
-  // Mirror the working root app: if an injected wallet provider is available,
-  // hand it to the CoW widget instead of forcing a standalone wallet flow.
-  return Boolean(getInjectedProvider())
-}
-
-function resolveStandaloneMode(options) {
-  if (typeof options.standaloneMode === 'boolean') {
-    return options.standaloneMode
-  }
-
-  return true
-}
-
-function getAvailableHeight() {
-  if (typeof window === 'undefined') return DEFAULT_HEIGHT
-
-  const isMobileViewport = window.innerWidth <= 640
-
-  if (!isMobileViewport) return DEFAULT_HEIGHT
-
-  const viewportHeight = window.innerHeight || DEFAULT_HEIGHT
-  const verticalPadding = 24
-
-  return Math.max(DEFAULT_HEIGHT, viewportHeight - verticalPadding)
-}
-
-function getAvailableWidth(container) {
-  if (typeof window === 'undefined') return DEFAULT_WIDTH
-
-  const viewportWidth = window.innerWidth || DEFAULT_WIDTH
-  const horizontalPadding = 32
-  const viewportSafeWidth = Math.max(
-    MIN_WIDTH,
-    Math.min(DEFAULT_WIDTH, viewportWidth - horizontalPadding),
-  )
-  const containerWidth = container?.clientWidth || 0
-
-  if (!containerWidth) return viewportSafeWidth
-
-  return Math.max(MIN_WIDTH, Math.min(containerWidth, viewportSafeWidth, DEFAULT_WIDTH))
-}
-
-function resolveWidth(container, requestedWidth) {
-  if (requestedWidth == null) {
-    return `${getAvailableWidth(container)}px`
-  }
-
-  if (typeof requestedWidth === 'number' && Number.isFinite(requestedWidth)) {
-    return `${Math.min(requestedWidth, getAvailableWidth(container))}px`
-  }
-
-  if (typeof requestedWidth === 'string' && requestedWidth.trim()) {
-    const parsed = parseInt(requestedWidth, 10)
-    if (Number.isFinite(parsed)) {
-      return `${Math.min(parsed, getAvailableWidth(container))}px`
-    }
-
-    return requestedWidth
-  }
-
-  return `${getAvailableWidth(container)}px`
-}
-
-function resolveHeight(requestedHeight) {
-  const availableHeight = getAvailableHeight()
-
-  if (requestedHeight == null) {
-    return `${availableHeight}px`
-  }
-
-  if (typeof requestedHeight === 'number' && Number.isFinite(requestedHeight)) {
-    return `${Math.max(requestedHeight, availableHeight)}px`
-  }
-
-  if (typeof requestedHeight === 'string' && requestedHeight.trim()) {
-    const parsed = parseInt(requestedHeight, 10)
-    if (Number.isFinite(parsed)) {
-      return `${Math.max(parsed, availableHeight)}px`
-    }
-
-    return requestedHeight
-  }
-
-  return `${availableHeight}px`
-}
-
-function resolveMaxHeight(height) {
-  if (typeof height === 'number' && Number.isFinite(height)) {
-    return height
-  }
-
-  if (typeof height === 'string') {
-    const parsed = parseInt(height, 10)
-    if (Number.isFinite(parsed)) {
-      return parsed
-    }
-  }
-
-  return DEFAULT_HEIGHT
-}
-
-export function createMbtcSwapWidget(target, options = {}) {
-  const container = resolveContainer(target)
-
-  if (!container) {
-    throw new Error('MBTC widget target container was not found.')
-  }
-
-  const width = resolveWidth(container, options.width)
-  const height = resolveHeight(options.height)
-
-  container.style.width = width
-  container.style.maxWidth = '100%'
-  container.style.height = height
-
-  const provider =
-    options.provider ?? (shouldUseInjectedProvider(options) ? getInjectedProvider() : undefined)
-  const params = {
-    ...getBaseWidgetParams(width, height),
-    maxHeight: resolveMaxHeight(height),
-    standaloneMode: resolveStandaloneMode(options),
-  }
-
-  let mountedWidget = null
+function createDeferredHandler() {
+  let widget = null
   let destroyed = false
-  let pendingParams = null
-  let pendingListeners = options.listeners
-  let pendingProvider = provider
+  const queuedCalls = []
 
-  const stopWatchingProvider =
-    options.provider || provider || options.useInjectedProvider === false
-      ? () => {}
-      : watchInjectedProvider((nextProvider) => {
-          pendingProvider = nextProvider
-          mountedWidget?.updateProvider(nextProvider)
-        })
+  function flush() {
+    if (!widget || destroyed) return
 
-  function mount() {
-    if (destroyed || mountedWidget) return
-
-    mountedWidget = createCowSwapWidget(container, {
-      params: pendingParams ?? params,
-      provider: pendingProvider,
-      listeners: pendingListeners,
-    })
+    while (queuedCalls.length > 0) {
+      const [method, args] = queuedCalls.shift()
+      widget[method](...args)
+    }
   }
-
-  window.setTimeout(mount, 0)
 
   return {
-    updateParams(nextParams) {
-      pendingParams = nextParams
-      mountedWidget?.updateParams(nextParams)
+    attach(nextWidget) {
+      widget = nextWidget
+
+      if (destroyed) {
+        widget.destroy()
+        widget = null
+        return
+      }
+
+      flush()
     },
-    updateListeners(nextListeners) {
-      pendingListeners = nextListeners
-      mountedWidget?.updateListeners(nextListeners)
-    },
-    updateProvider(nextProvider) {
-      pendingProvider = nextProvider
-      mountedWidget?.updateProvider(nextProvider)
-    },
-    destroy() {
-      destroyed = true
-      stopWatchingProvider()
-      mountedWidget?.destroy()
-      mountedWidget = null
+    api: {
+      updateParams(...args) {
+        if (widget) {
+          widget.updateParams(...args)
+          return
+        }
+
+        queuedCalls.push(['updateParams', args])
+      },
+      updateListeners(...args) {
+        if (widget) {
+          widget.updateListeners(...args)
+          return
+        }
+
+        queuedCalls.push(['updateListeners', args])
+      },
+      updateProvider(...args) {
+        if (widget) {
+          widget.updateProvider(...args)
+          return
+        }
+
+        queuedCalls.push(['updateProvider', args])
+      },
+      destroy() {
+        destroyed = true
+
+        if (widget) {
+          widget.destroy()
+          widget = null
+        }
+      },
     },
   }
+}
+
+function loadRuntime() {
+  if (runtimeFactory) {
+    return Promise.resolve(runtimeFactory)
+  }
+
+  if (!runtimePromise) {
+    runtimePromise = import(/* @vite-ignore */ getRuntimeUrl())
+      .then((mod) => {
+        if (typeof mod.createMbtcSwapWidget !== 'function') {
+          throw new Error('MBTC widget runtime did not export createMbtcSwapWidget.')
+        }
+
+        runtimeFactory = mod.createMbtcSwapWidget
+        window.dispatchEvent(new CustomEvent(RUNTIME_READY_EVENT))
+        return runtimeFactory
+      })
+      .catch((error) => {
+        runtimePromise = undefined
+        window.dispatchEvent(new CustomEvent(RUNTIME_ERROR_EVENT, { detail: error }))
+        throw error
+      })
+  }
+
+  return runtimePromise
+}
+
+export function createMbtcSwapWidget(...args) {
+  if (runtimeFactory) {
+    return runtimeFactory(...args)
+  }
+
+  const deferredHandler = createDeferredHandler()
+
+  loadRuntime()
+    .then((factory) => {
+      deferredHandler.attach(factory(...args))
+    })
+    .catch((error) => {
+      console.error('Failed to load MBTC widget runtime.', error)
+    })
+
+  return deferredHandler.api
 }
 
 if (typeof window !== 'undefined') {
   window.createMbtcSwapWidget = createMbtcSwapWidget
+  window.MbtcSwapWidget = window.MbtcSwapWidget || {}
+  window.MbtcSwapWidget.createMbtcSwapWidget = createMbtcSwapWidget
+  loadRuntime().catch(() => {})
 }

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "npm run build:site && npm run build:widget",
     "build:site": "vite build",
-    "build:widget": "vite build --config vite.widget.config.js",
+    "build:widget": "vite build --config vite.widget-runtime.config.js && vite build --config vite.widget.config.js",
     "preview": "vite preview"
   },
   "dependencies": {
