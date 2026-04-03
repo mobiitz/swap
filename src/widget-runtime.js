@@ -106,6 +106,7 @@ export function createMbtcSwapWidget(target, options = {}) {
   let widgetWidth = getResolvedWidth(requestedWidth)
   let widgetHeight = getResolvedHeight(requestedHeight)
   let widgetModulePromise = null
+  const autoResize = options.autoResize === true
 
   function applyContainerSize() {
     container.style.width = `${widgetWidth}px`
@@ -146,6 +147,8 @@ export function createMbtcSwapWidget(target, options = {}) {
   }
 
   function refreshMeasurements() {
+    if (!autoResize) return
+
     const nextWidth = getResolvedWidth(requestedWidth)
     const nextHeight = getResolvedHeight(requestedHeight)
     const widthChanged = nextWidth !== widgetWidth
@@ -166,7 +169,9 @@ export function createMbtcSwapWidget(target, options = {}) {
     refreshMeasurements()
   }
 
-  window.addEventListener('resize', handleResize)
+  if (autoResize) {
+    window.addEventListener('resize', handleResize)
+  }
 
   mountWidget().catch((error) => {
     console.error('Failed to mount MBTC widget.', error)
@@ -186,7 +191,9 @@ export function createMbtcSwapWidget(target, options = {}) {
     },
     destroy() {
       destroyed = true
-      window.removeEventListener('resize', handleResize)
+      if (autoResize) {
+        window.removeEventListener('resize', handleResize)
+      }
       destroyWidget()
     },
   }
