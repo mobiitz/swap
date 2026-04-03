@@ -18,6 +18,40 @@ function getInjectedProvider() {
   return window.ethereum
 }
 
+function watchInjectedProvider(onProvider, timeoutMs = 5000) {
+  if (typeof window === 'undefined') return () => {}
+
+  let stopped = false
+  let pollId
+  let timeoutId
+
+  function stop() {
+    if (stopped) return
+    stopped = true
+    window.removeEventListener('ethereum#initialized', tryEmitProvider)
+    window.removeEventListener('eip6963:announceProvider', tryEmitProvider)
+    if (pollId) window.clearInterval(pollId)
+    if (timeoutId) window.clearTimeout(timeoutId)
+  }
+
+  function tryEmitProvider() {
+    const provider = getInjectedProvider()
+    if (!provider) return
+    onProvider(provider)
+    stop()
+  }
+
+  window.addEventListener('ethereum#initialized', tryEmitProvider, { once: true })
+  window.addEventListener('eip6963:announceProvider', tryEmitProvider)
+
+  pollId = window.setInterval(tryEmitProvider, 250)
+  timeoutId = window.setTimeout(stop, timeoutMs)
+
+  tryEmitProvider()
+
+  return stop
+}
+
 function shouldUseInjectedProvider(options) {
   if (options.useInjectedProvider === true) return true
   if (options.useInjectedProvider === false) return false
@@ -129,11 +163,26 @@ export function createMbtcSwapWidget(target, options = {}) {
     standaloneMode: resolveStandaloneMode(options),
   }
 
-  return createCowSwapWidget(container, {
+  const widget = createCowSwapWidget(container, {
     params,
     provider,
     listeners: options.listeners,
   })
+
+  const stopWatchingProvider =
+    options.provider || provider || options.useInjectedProvider === false
+      ? () => {}
+      : watchInjectedProvider((nextProvider) => {
+          widget.updateProvider(nextProvider)
+        })
+
+  return {
+    ...widget,
+    destroy() {
+      stopWatchingProvider()
+      widget.destroy()
+    },
+  }
 }
 
 if (typeof window !== 'undefined') {
