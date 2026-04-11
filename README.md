@@ -37,6 +37,7 @@ This outputs:
 
 - site files in `dist/`
 - embeddable widget script at `dist/widget.js`
+- testnet widget script at `dist/widget-test.js`
 
 ## Embed Snippet
 
@@ -67,6 +68,31 @@ If a host page explicitly wants to use its own injected wallet provider, pass:
 </script>
 ```
 
+## Sepolia Test Widget
+
+For app development on Sepolia, use the separate test bundle:
+
+```html
+<div id="mbtc-widget"></div>
+
+<script src="https://mobiitz.github.io/swap/widget-test.js"></script>
+<script>
+  window.createMbtcSwapWidget('#mbtc-widget', {
+    width: 420,
+    height: 640
+  })
+</script>
+```
+
+The Sepolia test widget uses:
+
+- your existing app code: `mbtc-swap`
+- `chainId: 11155111` for Sepolia
+- default sell asset: `USDC`
+- default buy asset: `WETH`
+
+If you already have the production embed working in Squarespace, you can keep the same HTML and JavaScript and only swap the script URL from `widget.js` to `widget-test.js`.
+
 ## Rebuild And Push A New `widget.js`
 
 If you change the widget settings or widget code, rebuild and push like this:
@@ -95,3 +121,4 @@ Once deployed, the site and widget script will be available at:
 
 - `https://mobiitz.github.io/swap/`
 - `https://mobiitz.github.io/swap/widget.js`
+- `https://mobiitz.github.io/swap/widget-test.js`
